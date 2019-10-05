@@ -86,8 +86,6 @@
 
     var socket, localStream, connection, clientId = uuidv4(), channel;
 
-    var iceCandidates = [];
-
     const configuration = {
       iceServers: [{ urls: 'stun:stun2.1.google.com:19302' }]
     }
@@ -237,6 +235,7 @@
                     break;
                 case "failed":
                     log("Web RTC Peer Connection Failed. Please reload the page to reconnect");
+                    console.log(event);
                     disableAllButtons();
                     break;
                 case "closed":
@@ -289,8 +288,6 @@
 
                 connection.setLocalDescription(answer);
 
-                addAllIceCandidates();
-
                 socket.send(JSON.stringify(
                     {
                         action: 'onMessage',
@@ -309,8 +306,8 @@
 
     function handleCandidate(candidate, id){
         if(clientId != id){
-            log("Saving Ice Candidate - " + candidate.candidate);
-            iceCandidates.push(candidate);
+            log("Adding Ice Candidate - " + candidate.candidate);
+            connection.addIceCandidate(new RTCIceCandidate(candidate));
         }
     }
 
@@ -327,7 +324,6 @@
         if(clientId != id){
             log("Recieved The Answer");
             connection.setRemoteDescription(new RTCSessionDescription(answer));
-            addAllIceCandidates();
         }
     }
     
@@ -338,15 +334,6 @@
         });
     }
 
-    function addAllIceCandidates(){
-        iceCandidates.forEach(function (candidate, index) {
-            log("Adding Saved Ice Candidates - " + candidate.candidate);
-            connection.addIceCandidate(new RTCIceCandidate(candidate));
-        });
-
-        iceCandidates = [];
-    }
-    
     function setChannelEvents(channel) {
         channel.onmessage = function (event) {
             var data = JSON.parse(event.data);
