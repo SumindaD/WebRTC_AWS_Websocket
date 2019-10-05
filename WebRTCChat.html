@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>WebRTC Video Chat</title>
+    <style>
+
+        #videoContainer {
+            display: table;
+            margin: 0 auto;
+        }
+
+        video{
+            margin: 10px;
+            border: 2px solid #000000;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            resize: none;
+        }
+
+        .center {
+            margin: auto;
+            width: 70%;
+            border: 3px solid green;
+            padding: 10px;
+        }
+
+        input, button{
+            width: 100%;
+        }
+
+        video{
+            width: 40%;
+            height: 100%;
+        }
+
+        button {
+            border: 1px solid #000000;
+            background-color: #0099ff;
+            color: #ffffff;
+            padding: 5px 10px;
+        }
+
+        button:disabled,
+        button[disabled]{
+            border: 1px solid #999999;
+            background-color: #cccccc;
+            color: #666666;
+        }
+    </style>
+</head>
+<body>
+    
+</body>
+
+<div class="center">
+    <button id="sendOfferButton" onclick="createAndSendOffer()">Call</button>
+    <button id="answerButton" onclick="createAndSendAnswer()">Answer</button>
+    <button id="hangUpButton" onclick="disconnectRTCPeerConnection()">Hang Up</button><br/><br/>
+    
+    <input id="messageInput" type="text" size="80" placeholder="Enter message to send">
+    <button id="sendMessageButton" onclick="sendMessage()">Send Message</button><br/><br/>
+    
+    <div id="videoContainer">
+        <video id="localVideo" muted autoplay playsinline></video>
+        <video id="remoteVideo" muted autoplay playsinline></video>
+    </div>
+    <br/><br/>
+    
+    <textarea readonly id="chatTextArea"></textarea><br/><br/>
+    
+    <textarea id="logs"></textarea>
+
+</div>
+
+
+<script>
+    disableAllButtons();
+
+    webSocketConnection = "wss://8b3xc7qlf6.execute-api.eu-west-1.amazonaws.com/webrtc";
+
+    var socket, localStream, connection, clientId = uuidv4(), channel;
+
+    var iceCandidates = [];
+
+    const configuration = {
+      iceServers: [{ urls: 'stun:stun2.1.google.com:19302' }]
+    }
+    
+    getLocalWebCamFeed();
+
+    function initialSetup(stream){
+        document.getElementById("localVideo").srcObject = stream;
+        connectToWebSocket();
+    }
+
+    function disableAllButtons(){
+        document.getElementById("sendOfferButton").disabled = true;
+        document.getElementById("answerButton").disabled = true;
+        document.getElementById("sendMessageButton").disabled = true;
+        document.getElementById("hangUpButton").disabled = true;
+    }
+
+    function sendMessage(){
+        var messageText = document.getElementById("messageInput").value; 
+
+        channel.send(JSON.stringify({
+            "message": messageText
+        }));
+
+        document.getElementById("chatTextArea").value += messageText + '\n';
+    }
+
+    function disconnectRTCPeerConnection(){
+        connection.close();
+    }
+
+    function connectToWebSocket(){
+        socket = new WebSocket(webSocketConnection);
+
+        socket.onopen = function(event) {
+            log('WebSocket Connection Open.');
+            createRTCPeerConnection();
+        };
+
+        socket.onmessage = function(event) {
+            jsonData = JSON.parse(event.data);
+
+            switch (jsonData.type){
+                case 'candidate':
+                    handleCandidate(jsonData.data, jsonData.id);
+                    break;
+                case 'offer':
+                    handleOffer(jsonData.data, jsonData.id);
+                    break;
+                case 'answer':
+                    handleAnswer(jsonData.data, jsonData.id);
+                    break;
+                default:
+                    break
+            }
+        };
+
+        socket.onerror = function(event) {
+            console.error(event);
+            log('WebSocket Connection Error. Make sure web socket URL is correct and web socket server is up and running at - ' + webSocketConnection);
+        };
+
+        socket.onclose = function(event) {
+            log('WebSocket Connection Closed. Please Reload the page.');
+            document.getElementById("sendOfferButton").disabled = true;
+            document.getElementById("answerButton").disabled = true;
+        };
+    }
+
+    function log(message){
+        document.getElementById("logs").value += message + '\n';
+    }
+
+    function getLocalWebCamFeed(){
+        constraints = {
+            audio: false,
+            video: {
+                facingMode: "user"
+            }
+        } 
+
+        navigator.getWebcam = (navigator.getUserMedia || navigator.webKitGetUserMedia || navigator.moxGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia);
+        if (navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia(constraints)
+            .then(function (stream) {
+                localStream = stream;
+                initialSetup(stream);
+            })
+            .catch(function (e) { log(e.name + ": " + e.message); });
+        }
+        else {
+            navigator.getWebcam({ audio: true, video: true }, 
+                function (stream) {
+                    localStream = stream;
+                    initialSetup(stream);
+                }, 
+                function () { log("Web cam is not accessible."); 
+            });
+        }
+    }
+
+    function createRTCPeerConnection(){
+        connection = new RTCPeerConnection(configuration);
+
+        connection.addStream(localStream);
+
+        connection.onaddstream = event => {
+            log("Recieved a Stream");
+            document.getElementById("remoteVideo").srcObject = event.stream;
+        }
+
+        connection.ondatachannel = function (event) {
+            log("Recieved a DataChannel")
+            channel = event.channel;
+            setChannelEvents(channel);
+        };
+
+        connection.onicecandidate = event => {
+            if (event.candidate) {
+                log("Sending Ice Candidate - " + event.candidate.candidate);
+
+                socket.send(JSON.stringify(
+                    {
+                        action: 'onMessage',
+                        type: 'candidate',
+                        data: event.candidate,
+                        id: clientId
+                    }
+                ));
+            }
+        }
+
+        connection.onconnectionstatechange = function(event) {
+            //log("Connection Changed -> " + connection.connectionState);
+            switch(connection.connectionState) {
+                case "connected":
+                    log("Web RTC Peer Connection Connected.");
+                    document.getElementById("answerButton").disabled = true;
+                    document.getElementById("sendOfferButton").disabled = true;
+                    document.getElementById("hangUpButton").disabled = false;
+                    document.getElementById("sendMessageButton").disabled = false;
+                    break;
+                case "disconnected":
+                    log("Web RTC Peer Connection Disconnected. Please reload the page to reconnect.");
+                    disableAllButtons();
+                    break;
+                case "failed":
+                    log("Web RTC Peer Connection Failed. Please reload the page to reconnect");
+                    disableAllButtons();
+                    break;
+                case "closed":
+                    log("Web RTC Peer Connection Failed. Please reload the page to reconnect.");
+                    disableAllButtons();
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        log("Web RTC Peer Connection Created.");
+        document.getElementById("sendOfferButton").disabled = false;
+    }
+
+    function createAndSendOffer(){
+        if(channel){
+            channel.close();
+        }
+
+        channel = connection.createDataChannel('channel', {});
+        setChannelEvents(channel);
+
+        connection.createOffer(
+            offer => {
+                log('Sent The Offer.');
+
+                socket.send(JSON.stringify(
+                    {
+                        action: 'onMessage',
+                        type: 'offer',
+                        data: offer,
+                        id: clientId
+                    }
+                ));
+
+                connection.setLocalDescription(offer);
+            },
+            error => {
+                log('Error when creating an offer');
+                console.error(error);
+            }
+        );
+    }
+
+    function createAndSendAnswer(){
+        connection.createAnswer(
+            answer => {
+                log('Sent Answer');
+
+                connection.setLocalDescription(answer);
+
+                addAllIceCandidates();
+
+                socket.send(JSON.stringify(
+                    {
+                        action: 'onMessage',
+                        type: 'answer',
+                        data: answer,
+                        id: clientId
+                    }
+                ));
+            },
+            error => {
+                log('Error when creating an answer');
+                console.error(error);
+            }
+        );
+    }
+
+    function handleCandidate(candidate, id){
+        if(clientId != id){
+            log("Saving Ice Candidate - " + candidate.candidate);
+            iceCandidates.push(candidate);
+        }
+    }
+
+    function handleOffer(offer, id){
+        if(clientId != id){
+            log("Recieved The Offer.");
+            connection.setRemoteDescription(new RTCSessionDescription(offer));
+            document.getElementById("answerButton").disabled = false;
+            document.getElementById("sendOfferButton").disabled = true;
+        }
+    }
+
+    function handleAnswer(answer, id){
+        if(clientId != id){
+            log("Recieved The Answer");
+            connection.setRemoteDescription(new RTCSessionDescription(answer));
+            addAllIceCandidates();
+        }
+    }
+    
+    function uuidv4() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+    function addAllIceCandidates(){
+        iceCandidates.forEach(function (candidate, index) {
+            log("Adding Saved Ice Candidates - " + candidate.candidate);
+            connection.addIceCandidate(new RTCIceCandidate(candidate));
+        });
+
+        iceCandidates = [];
+    }
+    
+    function setChannelEvents(channel) {
+        channel.onmessage = function (event) {
+            var data = JSON.parse(event.data);
+            document.getElementById("chatTextArea").value += data.message + '\n';
+        };
+
+        channel.onerror = function (event) {
+            log('DataChannel Error.');
+            console.error(event)
+        };
+
+        channel.onclose = function (event) {
+            log('DataChannel Closed.');
+            disableAllButtons();
+        };
+    }
+</script>
+
+</html>
