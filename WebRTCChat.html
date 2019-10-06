@@ -87,7 +87,13 @@
     var socket, localStream, connection, clientId = uuidv4(), channel;
 
     const configuration = {
-      iceServers: [{ urls: 'stun:stun2.1.google.com:19302' }]
+      iceServers: [
+            {
+                url: 'turn:3.248.192.155:3478',
+                username: 'user',
+                credential: 'root'
+            }
+      ]
     }
     
     getLocalWebCamFeed();
