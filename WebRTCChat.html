@@ -208,6 +208,7 @@
             log("Recieved a DataChannel")
             channel = event.channel;
             setChannelEvents(channel);
+            document.getElementById("sendMessageButton").disabled = false;
         };
 
         connection.onicecandidate = event => {
@@ -226,7 +227,6 @@
         }
 
         connection.onconnectionstatechange = function(event) {
-            //log("Connection Changed -> " + connection.connectionState);
             switch(connection.connectionState) {
                 case "connected":
                     log("Web RTC Peer Connection Connected.");
