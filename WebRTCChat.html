@@ -89,9 +89,9 @@
     const configuration = {
       iceServers: [
             {
-                url: 'turn:3.248.192.155:3478',
-                username: 'user',
-                credential: 'root'
+                urls: 'turn:34.246.218.151:3478',
+                username: 'suminda',
+                credential: '1234'
             }
       ]
     }
@@ -170,7 +170,7 @@
         constraints = {
             audio: false,
             video: {
-                facingMode: "user"
+                facingMode: "environment"
             }
         } 
 
@@ -196,12 +196,11 @@
 
     function createRTCPeerConnection(){
         connection = new RTCPeerConnection(configuration);
+        connection.addTrack(localStream.getTracks()[0], localStream);
 
-        connection.addStream(localStream);
-
-        connection.onaddstream = event => {
+        connection.ontrack = event => {
             log("Recieved a Stream");
-            document.getElementById("remoteVideo").srcObject = event.stream;
+            document.getElementById("remoteVideo").srcObject = event.streams[0];
         }
 
         connection.ondatachannel = function (event) {
@@ -265,7 +264,7 @@
         channel = connection.createDataChannel('channel', {});
         setChannelEvents(channel);
 
-        connection.createOffer(
+        connection.createOffer().then(
             offer => {
                 log('Sent The Offer.');
 
@@ -288,7 +287,7 @@
     }
 
     function createAndSendAnswer(){
-        connection.createAnswer(
+        connection.createAnswer().then(
             answer => {
                 log('Sent Answer');
 
