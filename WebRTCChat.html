@@ -91,6 +91,9 @@
     const configuration = {
       iceServers: [
             {
+                urls: 'stun:34.246.218.151:3478'
+            },
+            {
                 urls: 'turn:34.246.218.151:3478',
                 username: 'suminda',
                 credential: '1234'
@@ -100,7 +103,7 @@
     
     getLocalWebCamFeed();
 
-    function initiatPeerConnection(stream){
+    function initiatSocketAndPeerConnection(stream){
         document.getElementById("localVideo").srcObject = stream;
 
         if(typeof socket === 'undefined'){
@@ -187,7 +190,7 @@
             navigator.mediaDevices.getUserMedia(constraints)
             .then(function (stream) {
                 localStream = stream;
-                initiatPeerConnection(stream);
+                initiatSocketAndPeerConnection(stream);
             })
             .catch(function (e) { log(e.name + ": " + e.message); });
         }
@@ -195,7 +198,7 @@
             navigator.getWebcam({ audio: true, video: true }, 
                 function (stream) {
                     localStream = stream;
-                    initiatPeerConnection(stream);
+                    initiatSocketAndPeerConnection(stream);
                 }, 
                 function () { log("Web cam is not accessible."); 
             });
