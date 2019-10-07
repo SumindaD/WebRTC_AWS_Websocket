@@ -70,7 +70,7 @@
     
     <div id="videoContainer">
         <video id="localVideo" onclick="switchMobileCamera()" muted autoplay playsinline></video>
-        <video id="remoteVideo" muted autoplay playsinline></video>
+        <video id="remoteVideo" autoplay playsinline></video>
     </div>
     <br/><br/>
     
@@ -86,17 +86,19 @@
 
     webSocketConnection = "wss://8b3xc7qlf6.execute-api.eu-west-1.amazonaws.com/webrtc";
 
-    var cameraMode = "environment";
+    var cameraMode = "user";
 
-    var socket, localStream, connection, clientId = uuidv4(), channel, existingTrack;
+    existingTracks = [];
+
+    var socket, localStream, connection, clientId = uuidv4(), channel;
 
     const configuration = {
       iceServers: [
             {
-                urls: 'stun:34.246.218.151:3478'
+                urls: 'stun:3.248.191.101:3478'
             },
             {
-                urls: 'turn:34.246.218.151:3478',
+                urls: 'turn:3.248.191.101:3478',
                 username: 'suminda',
                 credential: '1234'
             }
@@ -111,8 +113,9 @@
         if(typeof socket === 'undefined'){
             connectToWebSocket();
         }else{
-            connection.removeTrack(existingTrack);
-            existingTrack.replaceTrack(localStream.getTracks()[0]);
+            existingTracks.forEach(function (existingTrack, index) {
+                existingTrack.replaceTrack(localStream.getTracks()[index]);
+            });
         }
     }
 
@@ -181,7 +184,7 @@
 
     function getLocalWebCamFeed(){
         constraints = {
-            audio: false,
+            audio: true,
             video: {
                 facingMode: cameraMode
             }
@@ -209,7 +212,11 @@
 
     function createRTCPeerConnection(){
         connection = new RTCPeerConnection(configuration);
-        existingTrack = connection.addTrack(localStream.getTracks()[0], localStream);
+
+        for (const track of localStream.getTracks()) {
+            log("Track Added")
+            existingTracks.push(connection.addTrack(track, localStream));
+        }
 
         connection.ontrack = event => {
             log("Recieved a Stream");
