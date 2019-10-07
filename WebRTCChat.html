@@ -27,7 +27,7 @@
             margin: auto;
             width: 70%;
             border: 3px solid green;
-            padding: 10px;
+            padding: 20px;
         }
 
         input, button{
@@ -35,8 +35,8 @@
         }
 
         video{
-            width: 40%;
-            height: 100%;
+            width: 50px;
+            height: 50px;
         }
 
         button {
@@ -67,7 +67,7 @@
     <button id="sendMessageButton" onclick="sendMessage()">Send Message</button><br/><br/>
     
     <div id="videoContainer">
-        <video id="localVideo" muted autoplay playsinline></video>
+        <video id="localVideo" onclick="switchMobileCamera()" muted autoplay playsinline></video>
         <video id="remoteVideo" muted autoplay playsinline></video>
     </div>
     <br/><br/>
@@ -84,7 +84,9 @@
 
     webSocketConnection = "wss://8b3xc7qlf6.execute-api.eu-west-1.amazonaws.com/webrtc";
 
-    var socket, localStream, connection, clientId = uuidv4(), channel;
+    var cameraMode = "environment";
+
+    var socket, localStream, connection, clientId = uuidv4(), channel, existingTrack;
 
     const configuration = {
       iceServers: [
@@ -98,9 +100,15 @@
     
     getLocalWebCamFeed();
 
-    function initialSetup(stream){
+    function initiatPeerConnection(stream){
         document.getElementById("localVideo").srcObject = stream;
-        connectToWebSocket();
+
+        if(typeof socket === 'undefined'){
+            connectToWebSocket();
+        }else{
+            connection.removeTrack(existingTrack);
+            existingTrack.replaceTrack(localStream.getTracks()[0]);
+        }
     }
 
     function disableAllButtons(){
@@ -170,7 +178,7 @@
         constraints = {
             audio: false,
             video: {
-                facingMode: "environment"
+                facingMode: cameraMode
             }
         } 
 
@@ -179,7 +187,7 @@
             navigator.mediaDevices.getUserMedia(constraints)
             .then(function (stream) {
                 localStream = stream;
-                initialSetup(stream);
+                initiatPeerConnection(stream);
             })
             .catch(function (e) { log(e.name + ": " + e.message); });
         }
@@ -187,7 +195,7 @@
             navigator.getWebcam({ audio: true, video: true }, 
                 function (stream) {
                     localStream = stream;
-                    initialSetup(stream);
+                    initiatPeerConnection(stream);
                 }, 
                 function () { log("Web cam is not accessible."); 
             });
@@ -196,7 +204,7 @@
 
     function createRTCPeerConnection(){
         connection = new RTCPeerConnection(configuration);
-        connection.addTrack(localStream.getTracks()[0], localStream);
+        existingTrack = connection.addTrack(localStream.getTracks()[0], localStream);
 
         connection.ontrack = event => {
             log("Recieved a Stream");
@@ -354,6 +362,16 @@
             log('DataChannel Closed.');
             disableAllButtons();
         };
+    }
+
+    function switchMobileCamera(){
+        if (cameraMode == "user") {
+            cameraMode = "environment";
+        } else {
+            cameraMode = "user";
+        }
+
+        getLocalWebCamFeed();
     }
 </script>
 
