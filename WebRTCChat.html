@@ -82,9 +82,13 @@
 
 
 <script>
-    disableAllButtons();
+    const webSocketConnection = "wss://8b3xc7qlf6.execute-api.eu-west-1.amazonaws.com/webrtc";
+    const turnServerIPAddress = "3.248.191.101";
+    const turnServerPort = "3478";
+    const turnServerUserName = "suminda";
+    const turnServerPassword = "1234";
 
-    webSocketConnection = "wss://8b3xc7qlf6.execute-api.eu-west-1.amazonaws.com/webrtc";
+    disableAllButtons();
 
     var cameraMode = "user";
 
@@ -95,12 +99,12 @@
     const configuration = {
       iceServers: [
             {
-                urls: 'stun:3.248.191.101:3478'
+                urls: 'stun:' + turnServerIPAddress + ':' + turnServerPort
             },
             {
-                urls: 'turn:3.248.191.101:3478',
-                username: 'suminda',
-                credential: '1234'
+                urls: 'turn:' + turnServerIPAddress + ':' + turnServerPort,
+                username: turnServerUserName,
+                credential: turnServerPassword
             }
       ]
     }
