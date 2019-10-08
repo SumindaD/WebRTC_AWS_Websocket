@@ -218,17 +218,17 @@
         connection = new RTCPeerConnection(configuration);
 
         for (const track of localStream.getTracks()) {
-            log("Track Added")
+            log("Sending Stream.")
             existingTracks.push(connection.addTrack(track, localStream));
         }
 
         connection.ontrack = event => {
-            log("Recieved a Stream");
+            log("Recieved Stream.");
             document.getElementById("remoteVideo").srcObject = event.streams[0];
         }
 
         connection.ondatachannel = function (event) {
-            log("Recieved a DataChannel")
+            log("Recieved a DataChannel.")
             channel = event.channel;
             setChannelEvents(channel);
             document.getElementById("sendMessageButton").disabled = false;
@@ -263,7 +263,7 @@
                     disableAllButtons();
                     break;
                 case "failed":
-                    log("Web RTC Peer Connection Failed. Please reload the page to reconnect");
+                    log("Web RTC Peer Connection Failed. Please reload the page to reconnect.");
                     console.log(event);
                     disableAllButtons();
                     break;
@@ -304,7 +304,7 @@
                 connection.setLocalDescription(offer);
             },
             error => {
-                log('Error when creating an offer');
+                log('Error when creating an offer.');
                 console.error(error);
             }
         );
@@ -313,7 +313,7 @@
     function createAndSendAnswer(){
         connection.createAnswer().then(
             answer => {
-                log('Sent Answer');
+                log('Sent The Answer.');
 
                 connection.setLocalDescription(answer);
 
@@ -327,7 +327,7 @@
                 ));
             },
             error => {
-                log('Error when creating an answer');
+                log('Error when creating an answer.');
                 console.error(error);
             }
         );
