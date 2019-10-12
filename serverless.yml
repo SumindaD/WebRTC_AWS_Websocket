@@ -23,21 +23,11 @@ package:
     - "lib/**"
     - "node_modules/**"
 
-layers:
-  pythonPackageLayer:
-    path: lib
-    name: Python-Package-layer
-    description: Python Package layer
-    compatibleRuntimes:
-      - ${self:custom.lambdaRunTime}
-
 functions:
   connectHandler:
     handler: connect_handler.handle
     events:
       - websocket: $connect
-    layers:
-      - { Ref: PythonPackageLayerLambdaLayer }
     environment:
       SOCKET_CONNECTIONS_TABLE_NAME: ${self:custom.socketConnectionsTableName}
 
@@ -45,8 +35,6 @@ functions:
     handler: disconnect_handler.handle
     events:
       - websocket: $disconnect
-    layers:
-      - { Ref: PythonPackageLayerLambdaLayer }
     environment:
       SOCKET_CONNECTIONS_TABLE_NAME: ${self:custom.socketConnectionsTableName}
 
@@ -55,8 +43,6 @@ functions:
     events:
       - websocket:
           route: onMessage
-    layers:
-      - { Ref: PythonPackageLayerLambdaLayer }
     environment:
       SOCKET_CONNECTIONS_TABLE_NAME: ${self:custom.socketConnectionsTableName}
 
