@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "serverless-pseudo-parameters": "2.4.0"
+  }
+}
