@@ -78,19 +78,24 @@
     
     <textarea readonly id="chatTextArea"></textarea><br/><br/>
     
-    <textarea readonly id="logs"></textarea>
+    <textarea readonly id="logs"></textarea><br/><br/>
+
+    <p>In Bound Video Stats:</p><br/>
+    <div readonly id="inBoundstats"></div>
 
 </div>
 
 
 <script>
-    const webSocketConnection = "WEBSOCKET_URL";
-    const turnServerIPAddress = "TURN_SERVER_IP_ADDRESS";
-    const turnServerPort = "TURN_SERVER_PORT";
-    const turnServerUserName = "TURN_SERVER_USERNAME";
-    const turnServerPassword = "TURN_SERVER_PASSWORD";
+    const webSocketConnection = "wss://okez1zidej.execute-api.eu-west-1.amazonaws.com/webrtc";
+    const turnServerIPAddress = "34.254.229.242";
+    const turnServerPort = "3478";
+    const turnServerUserName = "suminda";
+    const turnServerPassword = "1234";
 
-    var cameraMode = "environment";
+    var cameraMode = "user";
+    var timestampPrev = 0;
+    var bytesPrev = 0;
 
     existingTracks = [];
 
@@ -205,6 +210,10 @@
         Get local camera permission from user and initiate socket and WebRTC connection
     */
     function getLocalWebCamFeed(){
+
+        // width: { ideal: 4096 },
+        // height: { ideal: 2160 } 
+
         constraints = {
             audio: true,
             video: {
@@ -236,6 +245,7 @@
         This is responsible for creating an RTCPeerConnection and handle it's events.
     */
     function createRTCPeerConnection(){
+        pushStats();
         connection = new RTCPeerConnection(configuration);
 
         // Add both video and audio tracks to the connection
@@ -455,6 +465,49 @@
         }
 
         getLocalWebCamFeed();
+    }
+
+    function pushStats(){
+        let inBoundStatsDiv = document.getElementById("inBoundstats");
+
+        window.setInterval(function() {
+            connection.getStats(null).then(stats => {
+                let statsOutput = "";
+                let bitrate;
+
+                stats.forEach(report => {
+                    // statsOutput += `<h2>Report: ${report.type}</h3>\n<strong>ID:</strong> ${report.id}<br>\n` +
+                    //                 `<strong>Timestamp:</strong> ${report.timestamp}<br>\n`;
+                    
+                    // // Now the statistics for this report; we intentially drop the ones we
+                    // // sorted to the top above
+
+                    // Object.keys(report).forEach(statName => {
+                    //     if (statName !== "id" && statName !== "timestamp" && statName !== "type") {
+                    //         statsOutput += `<strong>${statName}:</strong> ${report[statName]}<br>\n`;
+                    //     }
+                    // });
+
+                    // inBoundStatsDiv.innerHTML = statsOutput;
+
+                    if (report.type === 'inbound-rtp' && report.mediaType === 'video'){
+                        let now = report.timestamp;
+                        let bytes = report.bytesReceived;
+                        if (timestampPrev) {
+                            bitrate = 0.125 * (8 * (bytes - bytesPrev) / (now - timestampPrev));
+                            bitrate = Math.floor(bitrate);
+                        }
+                        bytesPrev = bytes;
+                        timestampPrev = now;
+                    }
+
+                    let inboundVideoWidth = document.getElementById("remoteVideo").videoWidth;
+                    let inboundVideoHeight = document.getElementById("remoteVideo").videoHeight;
+                    inBoundStatsDiv.innerHTML = `<strong>Bitrate: </strong>${bitrate} KB/sec<br/><strong>Video dimensions: </strong> ${inboundVideoWidth}x${inboundVideoHeight}px<br/>`;
+                });
+                
+            });
+        }, 1000);
     }
 </script>
 
