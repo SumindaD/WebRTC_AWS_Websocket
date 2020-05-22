@@ -11,7 +11,7 @@ provider:
   - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
   runtime: ${self:custom.lambdaRunTime}
   versionFunctions: false
-  region: eu-west-1
+  region: us-west-2
   timeout: 29
 
 plugins:

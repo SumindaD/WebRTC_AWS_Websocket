@@ -145,8 +145,12 @@
         if(typeof socket === 'undefined'){
             connectToWebSocket();
         }else{
-            existingTracks.forEach(function (existingTrack, index) {
-                existingTrack.replaceTrack(localStream.getTracks()[index]);
+            stream.getTracks().forEach(function (track, index) {
+                connection.getSenders().find(function(s) {
+                    if (s.track.kind == track.kind){
+                        s.replaceTrack(track);
+                    }
+                });
             });
         }
     }
@@ -233,9 +237,9 @@
         constraints = {
             audio: true,
             video: {
-                facingMode: cameraMode,
-                width: { ideal: 4096 },
-                height: { ideal: 2160 }
+                facingMode: cameraMode
+                // width: { ideal: 1280 },
+                // height: { ideal: 720 }
             }
         } 
 
